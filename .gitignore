@@ -6,3 +6,4 @@
 *.pdf
 *.tiff
 *.DS_Store
+*sessionInfo.txt

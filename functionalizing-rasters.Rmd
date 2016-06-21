@@ -110,20 +110,31 @@ plot(chm.htclass, main = "Reclassified CHM by height classes \nTEAK field site")
 
 ```
 
+## Insert make PDF function here
+
+```{r make-pdf-function }
+
+# add in make pdf function
+make_pdf <- function(expr, filename, ..., verbose = TRUE) {
+  if(verbose) {
+    message("Creating: ", filename)
+  }
+  pdf(file = filename, ...)
+  on.exit(dev.off())
+  eval.parent(substitute(expr))
+}
+
+```
+
+## Save our density plot as a PDF
+
 ```{r save-pdf-density, eval=FALSE }
 
-# save the previous plot as a PDF
-pdf(file="TEAK_CHM_density_with_breaks.pdf", width = 6, height = 7)
-
-# visualize breaks in density plot
-density(chm,
-        main="Canopy heights at TEAK site \nwith bin cutoffs in red",
-        xlab="Height (m)")
-
-# plot vertical lines
-abline(v = rcl.m[,2], col = "red")
-
-dev.off()
+# save as pdf using new function
+make_pdf(density_with_breaks(rast.in = chm, 
+                             title = "TEAK CHM density", 
+                             bins=chosen.breaks), 
+         filename = "TEAK_CHM_density_with_breaks.pdf")
 
 ```
 
@@ -156,78 +167,65 @@ dsm.hill <- hillShade(slope, aspect,
 
 ```{r plot-classified-raster }
 
-# use code from NEON website to add legend
-# make room for legend
-par(xpd = FALSE, mar=c(5.1, 4.1, 4.1, 4.5))
+plot_reclassified_raster <- function(rast.in, site.name, breaks){
+        # this is a tricky bit because we need to out the legend
+        # outside of the plot region
+        
+        # Get colors for plotting
+        bin.colors <- rev(terrain.colors(length(breaks)))
+        
+        # make room for a legend
+        
+        par(xpd = FALSE, mar = c(5.1, 4.1, 4.1, 4.5))
+        
+        # plot
+        plot(rast.in,
+                 col = bin.colors,
+                 main = paste("Canopy height classes \n", site.name),
+                 legend = FALSE)
+        
+        # allow legend to plot outside of bounds
+        par(xpd = TRUE)
+        
+        # legend x
+        leg.x <- par()$usr[2] + 20
+        
+        # legend y
+        leg.y <- par()$usr[4] + 50 - (abs(par()$usr[3] - par()$usr[4]) / 2) 
+        
+        # create legend text
+        height.mat <- create_height_class_matrix(breaks)
+        
+        # initialize legend text
+        legend.text <- c()
+        
+        for (i in 1:length(breaks)) {
+                
+                legend.text <- c(legend.text, 
+                                 paste0(height.mat[i, 1], "-", 
+                                        height.mat[i, 2], " m"))
+        }
+        
+        # create the legend
+        legend(leg.x, leg.y,  # set x,y legend location
+                   legend = legend.text,  # make sure the order matches colors
+                   fill = bin.colors,
+                   bty = "n") # turn off border
+        
+        # turn off plotting outside of bounds
+        par(xpd = FALSE)
+}
 
-# plot chm
-plot(chm.htclass,
-     col=c("blue","green","yellow","orange","red"),  # blue=1, yellow=2, green=3
-     main="Classified Canopy Height Model (CHM) \nTEAK field site",
-     legend=FALSE)
-# to remove oversized box, can add axes=FALSE and box=FALSE
-# but then have to put axes back in
-
-chm.htclass
-
-## playing around with adding outside line and axes
-# plot(extent(chm.htclass), add=TRUE, lwd=2)  # adds outline back to plot
-# # working on putting axes back in, needs some work
-# axis(2, at=axTicks(2), pos=(par()$usr[1]+140), labels=paste(axTicks(2)))
-# axis(1, at=axTicks(1), pos=(par()$usr[3]), labels=paste(axTicks(1)))
-
-# allow legend to plot outside of bounds
-par(xpd=TRUE)
-
-# enable plotting legend outside of bounds
-# legend x position
-leg.x <- par()$usr[2] + 20
-
-# legend y position
-leg.y <- par()$usr[4] + 100 - (abs(par()$usr[3] - par()$usr[4])/2)
-
-# create legend
-legend(leg.x, leg.y,
-       title = "Height (m)",
-       legend = c("0-6","6-10","10-20","20-40",">40"),  # make sure the order matches the colors, next
-       fill = c("blue", "green","yellow", "orange","red"),
-       bty="n") # turn off border
+plot_reclassified_raster(chm.htclass, site.name = "TEAK", breaks = chosen.breaks)
 
 ```
 
 ```{r save-pdf-classified-raster, eval=FALSE }
 
 # save as PDF
-pdf(file = "TEAK_CHM_classified.pdf", width = 7, height = 7)
-
-# use code from NEON website to add legend
-# make room for legend
-par(xpd = FALSE, mar=c(5.1, 4.1, 4.1, 4.5))
-
-# plot chm
-plot(chm.htclass,
-     col=c("blue","green","yellow","orange","red"),  # blue=1, yellow=2, green=3
-     main="Classified Canopy Height Model (CHM) \nTEAK field site",
-     legend=FALSE)
-
-# allow legend to plot outside of bounds
-par(xpd=TRUE)
-
-# enable plotting legend outside of bounds
-# legend x position
-leg.x <- par()$usr[2] + 20
-
-# legend y position
-leg.y <- par()$usr[4] + 100 - (abs(par()$usr[3] - par()$usr[4])/2)
-
-# create legend
-legend(leg.x, leg.y,
-       title = "Height (m)",
-       legend = c("0-6","6-10","10-20","20-40",">40"),  # make sure the order matches the colors, next
-       fill = c("blue", "green","yellow", "orange","red"),
-       bty="n") # turn off border
-
-dev.off()
+make_pdf(plot_reclassified_raster(chm.htclass, site.name = "TEAK",
+                                  breaks=chosen.breaks),
+         filename = "TEAK_chm_reclassified.pdf")
 
 ```
 
@@ -259,15 +257,6 @@ sink()
 
 ```{r add-make-pdf-function }
 
-make_pdf <- function(expr, filename, ..., verbose = TRUE) {
-  if(verbose) {
-    message("Creating: ", filename)
-  }
-  pdf(file = filename, ...)
-  on.exit(dev.off())
-  eval.parent(substitute(expr))
-}
-
 hist_from_chm <- function(chm, title, breaks) {
   hist(chm, main = title, xlab = "Canopy heights (m)")
   abline(v = breaks, col = "red")
@@ -278,11 +267,6 @@ make_pdf(hist_from_chm(chm,
                        title = "Histogram of TEAK CHM", 
                        breaks = c(10, 30)), 
          "TEAK_CHM_histogram.pdf")
-
-density_plot_from_chm <- function(chm, title, breaks) {
-  density(chm, main = title, xlab = "Canopy height (m)")
-  abline(v = breaks, col = "red")
-}
 
 ```
 

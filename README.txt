@@ -4,6 +4,10 @@ Code written by:
 Kristin Braziunas
 braziunas@wisc.edu
 
+Note: can also add citation and license information here. See link to open licenses and creative commons licenses.
+
+Make sure to also cite the packages used with citation() in R and note R version used.
+
 Initial work done on June 21, 2016.
 
 This set of analyses expects to have a directory of data sibling but not within it. This is because many of the data files are too large to include in the repository.

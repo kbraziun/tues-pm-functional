@@ -24,7 +24,6 @@ create_height_class_matrix <- function(breaks) {
   reclass.height.mat
 }
 
-create_height_class_matrix(chosen.breaks)
 
 ## create function to plot density of heights with chosen breaks
 # expects chm raster, title, vector of breaks

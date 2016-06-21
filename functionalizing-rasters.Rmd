@@ -146,6 +146,16 @@ plot(chm.htclass,
      col=c("blue","green","yellow","orange","red"),  # blue=1, yellow=2, green=3
      main="Classified Canopy Height Model (CHM) \nTEAK field site",
      legend=FALSE)
+# to remove oversized box, can add axes=FALSE and box=FALSE
+# but then have to put axes back in
+
+chm.htclass
+
+## playing around with adding outside line and axes
+# plot(extent(chm.htclass), add=TRUE, lwd=2)  # adds outline back to plot
+# # working on putting axes back in, needs some work
+# axis(2, at=axTicks(2), pos=(par()$usr[1]+140), labels=paste(axTicks(2)))
+# axis(1, at=axTicks(1), pos=(par()$usr[3]), labels=paste(axTicks(1)))
 
 # allow legend to plot outside of bounds
 par(xpd=TRUE)
@@ -223,6 +233,37 @@ sink(paste0(format(Sys.time(), "%Y-%m-%d_%H%M%S"),
             "_sessionInfo.txt"))
 sessionInfo()
 sink()
+
+```
+
+## Adding make PDF function
+
+```{r add-make-pdf-function }
+
+make_pdf <- function(expr, filename, ..., verbose = TRUE) {
+  if(verbose) {
+    message("Creating: ", filename)
+  }
+  pdf(file = filename, ...)
+  on.exit(dev.off())
+  eval.parent(substitute(expr))
+}
+
+hist_from_chm <- function(chm, title, breaks) {
+  hist(chm, main = title, xlab = "Canopy heights (m)")
+  abline(v = breaks, col = "red")
+}
+
+hist_from_chm(chm, title = "Histogram of TEAK CHM", breaks = c(10, 30))
+make_pdf(hist_from_chm(chm, 
+                       title = "Histogram of TEAK CHM", 
+                       breaks = c(10, 30)), 
+         "TEAK_CHM_histogram.pdf")
+
+density_plot_from_chm <- function(chm, title, breaks) {
+  density(chm, main = title, xlab = "Canopy height (m)")
+  abline(v = breaks, col = "red")
+}
 
 ```
 

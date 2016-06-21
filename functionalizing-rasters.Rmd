@@ -11,10 +11,208 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Objectives
 
+Before starting on the objectives, I need to open the packages I will need.
+
+```{r load-libraries }
+
+library(raster)
+library(rgdal)
+library(neonAOP)
+
+```
+
 1. Import a raster — A lidar canopy height model (lidar/Teak_lidarCHM.tif)
-1. For the CHM, set values == 0 to NA (not trees)
-1. Classify the raster according to some distribution – low medium and tall trees. This could be done using a histogram potentially or we could just decide that <2m is generally grasses / understory, <6m small trees,and the rest are tall trees. A function could import the desired thresholds. Visualize histogram/density and plot vertical cutoff lines.
-1. Take the chm and create a hillshade (http://neon-workwithdata.github.io/neon-data-institute-2016/R/create-hillshade-R/)
-1. PLOT - layer the classified raster on top of the hillshade, add a legend for each “class” - legends are super tricky to simplifying this process with a function would be good.  see: http://neon-workwithdata.github.io/neon-data-institute-2016/R/classify-by-threshold-R/  for my take on forcing a legend outside of the plot area using par settings. You may have other better forms of magic to make this work well. :)
-1. Export the plot figure to a pdf – publishable
-1. Export the classified raster as a geotiff with NaFlagg = -9999 to an outputs folder.
+
+```{r import-chm-raster }
+
+# import CHM
+chm <- raster("../NEONdata/D17-California/TEAK/2013/lidar/TEAK_lidarCHM.tif")
+
+# take a look at it
+plot(chm, main = "Canopy Height Model (CHM) \nTEAK field site")
+
+```
+
+2. For the CHM, set values == 0 to NA (not trees)
+
+```{r set-chm-na-values }
+
+# are there 0 values?
+hist(chm)  # looks like a lot
+
+# set NA values
+chm[chm == 0] <- NA
+
+# make sure it worked with a histogram
+hist(chm)  # looks better
+
+# can also look at density plot
+density(chm, xlab="Height (m)")
+
+```
+
+3. Classify the raster according to some distribution – low medium and tall trees. This could be done using a histogram potentially or we could just decide that <2m is generally grasses / understory, <6m small trees,and the rest are tall trees. A function could import the desired thresholds. Visualize histogram/density and plot vertical cutoff lines.
+
+```{r classify-raster }
+
+# look at CHM
+chm  # max value is 55.68
+
+# create matrix for tree classification
+class.m <- c(0, 6, 1,
+             6, 10, 2,
+             10, 20, 3,
+             20, 40, 4,
+             40, 56, 5)
+# I'm setting vegetation below breast height to 0-1.4m, 4 additional classes.
+
+# make this list of values into a matrix
+rcl.m <- matrix(class.m,
+                ncol=3,
+                byrow=TRUE)
+
+# look at the matrix
+rcl.m
+
+# reclassify the raster
+
+chm.htclass <- reclassify(chm, rcl.m)
+
+# look at plot
+plot(chm.htclass, main = "Reclassified CHM by height classes \nTEAK field site")
+
+# visualize breaks in density plot
+density(chm,
+        main="Canopy heights at TEAK site \nwith bin cutoffs in red",
+        xlab="Height (m)")
+
+# plot vertical lines
+abline(v = rcl.m[,2], col = "red")
+
+```
+
+```{r save-pdf-density, eval=FALSE }
+
+# save the previous plot as a PDF
+pdf(file="TEAK_CHM_density_with_breaks.pdf", width = 6, height = 7)
+
+# visualize breaks in density plot
+density(chm,
+        main="Canopy heights at TEAK site \nwith bin cutoffs in red",
+        xlab="Height (m)")
+
+# plot vertical lines
+abline(v = rcl.m[,2], col = "red")
+
+dev.off()
+
+```
+
+4. Take the chm and create a hillshade (http://neon-workwithdata.github.io/neon-data-institute-2016/R/create-hillshade-R/)
+
+```{r create-hillshade, eval = FALSE }
+
+# following along with NEON website
+# first have to import dsm
+
+dsm <- raster("../NEONdata/D17-California/TEAK/2013/lidar/TEAK_lidarDSM.tif")
+
+# extract slope and aspect
+slope <- terrain(dsm, opt="slope")
+aspect <- terrain(dsm, opt="aspect")
+
+# create hillshade
+dsm.hill <- hillShade(slope, aspect,
+                      angle = 40,
+                      direction = 270)
+
+# stopped here, because not creating a hillshade right now
+
+```
+
+5. PLOT - Plot the classified raster, add a legend for each “class” - legends are super tricky to simplifying this process with a function would be good.  see: http://neon-workwithdata.github.io/neon-data-institute-2016/R/classify-by-threshold-R/  for my take on forcing a legend outside of the plot area using par settings. You may have other better forms of magic to make this work well. :)
+
+6. Export the plot figure to a pdf – publishable
+
+
+```{r plot-classified-raster }
+
+# use code from NEON website to add legend
+# make room for legend
+par(xpd = FALSE, mar=c(5.1, 4.1, 4.1, 4.5))
+
+# plot chm
+plot(chm.htclass,
+     col=c("blue","green","yellow","orange","red"),  # blue=1, yellow=2, green=3
+     main="Classified Canopy Height Model (CHM) \nTEAK field site",
+     legend=FALSE)
+
+# allow legend to plot outside of bounds
+par(xpd=TRUE)
+
+# enable plotting legend outside of bounds
+# legend x position
+leg.x <- par()$usr[2] + 20
+
+# legend y position
+leg.y <- par()$usr[4] + 100 - (abs(par()$usr[3] - par()$usr[4])/2)
+
+# create legend
+legend(leg.x, leg.y,
+       title = "Height (m)",
+       legend = c("0-6","6-10","10-20","20-40",">40"),  # make sure the order matches the colors, next
+       fill = c("blue", "green","yellow", "orange","red"),
+       bty="n") # turn off border
+
+```
+
+```{r save-pdf-classified-raster, eval=FALSE }
+
+# save as PDF
+pdf(file = "TEAK_CHM_classified.pdf", width = 7, height = 7)
+
+# use code from NEON website to add legend
+# make room for legend
+par(xpd = FALSE, mar=c(5.1, 4.1, 4.1, 4.5))
+
+# plot chm
+plot(chm.htclass,
+     col=c("blue","green","yellow","orange","red"),  # blue=1, yellow=2, green=3
+     main="Classified Canopy Height Model (CHM) \nTEAK field site",
+     legend=FALSE)
+
+# allow legend to plot outside of bounds
+par(xpd=TRUE)
+
+# enable plotting legend outside of bounds
+# legend x position
+leg.x <- par()$usr[2] + 20
+
+# legend y position
+leg.y <- par()$usr[4] + 100 - (abs(par()$usr[3] - par()$usr[4])/2)
+
+# create legend
+legend(leg.x, leg.y,
+       title = "Height (m)",
+       legend = c("0-6","6-10","10-20","20-40",">40"),  # make sure the order matches the colors, next
+       fill = c("blue", "green","yellow", "orange","red"),
+       bty="n") # turn off border
+
+dev.off()
+
+```
+
+
+7. Export the classified raster as a geotiff with NaFlagg = -9999 to an outputs folder.
+
+```{r export-geotiff, eval=FALSE }
+
+writeRaster(chm.htclass,
+            file = "../outputs/TEAK/TEAK_CHM_classified.tif",
+            format = "GTiff",
+            options = "COMPRESS=LZW", 
+            overwrite = TRUE,
+            NAflag = -9999)
+
+```
+
